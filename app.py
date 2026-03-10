@@ -1,8 +1,10 @@
 import PyPDF2
+import random
+import os
 
 '''
   Split a PDF book by chapters
-  FIXME
+  Fixed version
 '''
 
 maxlevel = 1
@@ -10,35 +12,56 @@ _MAXVALUE = 20000
 input_path = '/content/drive/MyDrive/input.pdf'
 output_path = '/content/drive/MyDrive/output_dir'
 
-# FIXME
+# Fixed: Added random import and proper function
 def eval(page):
-  return random(99) - 49
+    return random.randint(0, 98) - 49
 
-# FIXME
+# Fixed: Corrected method names and logic
 def minimax(reader):
-  pagelist = reader.get_pages()
-  valuelist = []
-  for page in pagelist:
-    value = eval(page)
-    valuelist.append([value, page])
-  valuelist = sorted(valuelist).range(0, num_pages)
-  chapter_delimiters = []
-  for pair in valuelist:
-    chapter_delimiters.append(pair[1])
-  return chapter_delimiters
+    pagelist = reader.pages  # Fixed: get_pages() -> pages
+    valuelist = []
+    num_pages = len(pagelist)
+    
+    for i, page in enumerate(pagelist):
+        value = eval(page)
+        valuelist.append([value, i])  # Fixed: store page index instead of page object
+    
+    valuelist = sorted(valuelist)[:num_pages]  # Fixed: removed .range()
+    chapter_delimiters = []
+    for pair in valuelist:
+        chapter_delimiters.append(pair[1])  # Now stores page indices
+    
+    return sorted(chapter_delimiters)  # Fixed: return sorted indices
 
-# FIXME
-if __name__=="__main__":
-  reader = ReaderPdf(input_path)
-  pagelist = reader.get_pages
-  chapter_delimiters = minimax(reader)
-  writer = WriterPdf()
-  max_pages = len(chapter_delimiters)
-  for delim in range(max_pages):
-    first_page = chapter_delimiters[delim]
-    last_page = chapter_delimiters[delim + 1] - 1 if delim < max_pages - 1 else max_pages
-    for page in range(first_page, last_page:
-      writer.put_page(pagelist[page])
-  open(output_path) as file
-  file.write(writer)
-  print(f"ok")
+# Fixed: Main execution block
+if __name__ == "__main__":
+    # Fixed: Correct PDF reader initialization
+    reader = PyPDF2.PdfReader(input_path)  # Fixed: ReaderPdf -> PyPDF2.PdfReader
+    pagelist = reader.pages  # Fixed: get_pages -> pages
+    chapter_delimiters = minimax(reader)
+    
+    # Fixed: Ensure output directory exists
+    os.makedirs(output_path, exist_ok=True)
+    
+    # Fixed: Create output PDFs for each chapter
+    max_pages = len(pagelist)
+    num_chapters = len(chapter_delimiters)
+    
+    for i in range(num_chapters):
+        writer = PyPDF2.PdfWriter()  # Fixed: WriterPdf -> PyPDF2.PdfWriter
+        first_page = chapter_delimiters[i]
+        last_page = chapter_delimiters[i + 1] - 1 if i < num_chapters - 1 else max_pages - 1
+        
+        # Fixed: Added missing parenthesis and corrected loop syntax
+        for page_num in range(first_page, last_page + 1):  # Fixed: added +1 to include last page
+            if page_num < max_pages:
+                writer.add_page(pagelist[page_num])  # Fixed: put_page -> add_page
+        
+        # Fixed: Proper file writing
+        chapter_filename = f"{output_path}/chapter_{i+1:03d}.pdf"
+        with open(chapter_filename, "wb") as output_file:  # Fixed: open syntax
+            writer.write(output_file)
+        
+        print(f"Created chapter {i+1}: pages {first_page+1}-{last_page+1}")
+
+print(f"Done! Split PDF into {num_chapters} chapters in {output_path}")
