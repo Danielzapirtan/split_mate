@@ -1,4 +1,5 @@
 import PyPDF2
+import re
 import random
 import os
 
