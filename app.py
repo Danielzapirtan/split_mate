@@ -39,7 +39,7 @@ def eval(page):
 def minimax(reader):
     pagelist = reader.pages  # Fixed: get_pages() -> pages
     valuelist = []
-    num_pages = len(pagelist)
+    num_pages = 15
     
     for i, page in enumerate(pagelist):
         value = eval(page)
