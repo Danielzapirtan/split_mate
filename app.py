@@ -14,7 +14,9 @@ output_path = '/content/drive/MyDrive/output_dir'
 
 # Fixed: Added random import and proper function
 def eval(page):
-    return random.randint(0, 98) - 49
+    value = 0
+    value += random.randint(0, 98) - 49
+    return value
 
 # Fixed: Corrected method names and logic
 def minimax(reader):
