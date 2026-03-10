@@ -15,6 +15,22 @@ output_path = '/content/drive/MyDrive/output_dir'
 # Fixed: Added random import and proper function
 def eval(page):
     value = 0
+    text = page.extract_text()
+    if re.match(r'^\d+$', text):
+        value += 300
+        if re.match(r'FIGURE', text):
+            value -= 500
+    if re.match(r'\s*Chapter\s+\d+', text):
+        value += 900
+    if re.match(r'CHAPTER', text):
+        value += 900
+    line_0 = text
+    if '\n' in text:
+        line_0 = text.split('\n')[0]
+    if re.match(r'^\s*\d+\s', line_0):
+        value -= 400
+    if re.match(r'\s\d+\s*$', line_0):
+        value -= 400
     value += random.randint(0, 98) - 49
     return value
 
