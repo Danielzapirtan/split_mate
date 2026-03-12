@@ -44,7 +44,9 @@ def minimax(reader):
         value = eval(page)
         valuelist.append([value, i])
     
-    valuelist = sorted(valuelist).reverse()[:num_pages]
+    valuelist = sorted(valuelist)
+    valuelist.reverse()
+    valuelist = valuelist[:num_pages]
     chapter_delimiters = []
     for pair in valuelist:
         chapter_delimiters.append(pair[1])
