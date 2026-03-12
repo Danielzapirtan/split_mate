@@ -18,7 +18,7 @@ def eval(page):
     text = page.extract_text()
     # Fixed: Added text existence check
     if text:
-        if re.match(r'^\d+$', text):
+        if re.search(r'^\d+$', text):
             value += 300
         # Fixed: Moved FIGURE check inside text block and fixed regex
         if re.search(r'FIGURE', text, re.IGNORECASE):
@@ -26,13 +26,13 @@ def eval(page):
         line_0 = text
         if '\n' in text:
             line_0 = text.split('\n')[0]
-        if re.match(r'\s*Chapter\s+\d+', line_0, re.IGNORECASE):
+        if re.search(r'\s*Chapter\s+\d+', line_0, re.IGNORECASE):
             value += 900
-        if re.match(r'CHAPTER', line_0, re.IGNORECASE):
+        if re.search(r'CHAPTER', line_0, re.IGNORECASE):
             value += 900
-        if re.match(r'^\s*\d+\s', line_0):
+        if re.search(r'^\s*\d+\s', line_0):
             value -= 400
-        if re.match(r'\s\d+\s*$', line_0):
+        if re.search(r'\s\d+\s*$', line_0):
             value -= 400
     value += random.randint(0, 98) - 49
     return value
