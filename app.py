@@ -13,25 +13,27 @@ _MAXVALUE = 20000
 input_path = '/content/drive/MyDrive/boox/Chain.pdf'
 output_path = '/content/drive/MyDrive/output_dir'
 
-# Fixed: Added random import and proper function
 def eval(page):
     value = 0
     text = page.extract_text()
-    if re.match(r'^\d+$', text):
-        value += 300
-        if re.match(r'FIGURE', text):
+    # Fixed: Added text existence check
+    if text:
+        if re.match(r'^\d+$', text):
+            value += 300
+        # Fixed: Moved FIGURE check inside text block and fixed regex
+        if re.search(r'FIGURE', text, re.IGNORECASE):
             value -= 500
-    line_0 = text
-    if '\n' in text:
-        line_0 = text.split('\n')[0]
-    if re.match(r'\s*Chapter\s+\d+', line_0):
-        value += 900
-    if re.match(r'CHAPTER', line_0):
-        value += 900
-    if re.match(r'^\s*\d+\s', line_0):
-        value -= 400
-    if re.match(r'\s\d+\s*$', line_0):
-        value -= 400
+        line_0 = text
+        if '\n' in text:
+            line_0 = text.split('\n')[0]
+        if re.match(r'\s*Chapter\s+\d+', line_0, re.IGNORECASE):
+            value += 900
+        if re.match(r'CHAPTER', line_0, re.IGNORECASE):
+            value += 900
+        if re.match(r'^\s*\d+\s', line_0):
+            value -= 400
+        if re.match(r'\s\d+\s*$', line_0):
+            value -= 400
     value += random.randint(0, 98) - 49
     return value
 
@@ -78,4 +80,5 @@ if __name__ == "__main__":
         
         print(f"Created chapter {i+1}: pages {first_page+1}-{last_page+1}")
 
-print(f"Done! Split PDF into {num_chapters} chapters in {output_path}")
+    # Fixed: Moved print statement inside if __name__ block
+    print(f"Done! Split PDF into {num_chapters} chapters in {output_path}")
