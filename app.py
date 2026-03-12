@@ -10,7 +10,7 @@ import os
 
 maxlevel = 1
 _MAXVALUE = 20000
-input_path = '/content/drive/MyDrive/boox/Chain.pdf'
+input_path = '/content/drive/MyDrive/boox/dbt_bpd.pdf'
 output_path = '/content/drive/MyDrive/output_dir'
 
 def eval(page):
