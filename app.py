@@ -44,14 +44,13 @@ def minimax(reader):
         value = eval(page)
         valuelist.append([value, i])
     
-    valuelist = sorted(valuelist).reversed()[:num_pages]  # Fixed: removed .range()
+    valuelist = sorted(valuelist).reverse()[:num_pages]
     chapter_delimiters = []
     for pair in valuelist:
         chapter_delimiters.append(pair[1])
     
     return sorted(chapter_delimiters)
 
-# Fixed: Main execution block
 if __name__ == "__main__":
     reader = PyPDF2.PdfReader(input_path)
     pagelist = reader.pages
