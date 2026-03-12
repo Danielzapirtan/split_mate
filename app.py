@@ -33,7 +33,7 @@ def eval(page):
     if re.match(r'\s\d+\s*$', line_0):
         value -= 400
     value += random.randint(0, 98) - 49
-    return value
+    return -value
 
 def minimax(reader):
     pagelist = reader.pages
@@ -44,7 +44,7 @@ def minimax(reader):
         value = eval(page)
         valuelist.append([value, i])
     
-    valuelist = reversed(sorted(valuelist))[:num_pages]
+    valuelist = sorted(valuelist)[:num_pages]
     chapter_delimiters = []
     for pair in valuelist:
         chapter_delimiters.append(pair[1])
