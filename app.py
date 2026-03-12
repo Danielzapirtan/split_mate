@@ -45,7 +45,7 @@ def minimax(reader):
         value = eval(page)
         valuelist.append([value, i])  # Fixed: store page index instead of page object
     
-    valuelist = sorted(valuelist)[:num_pages]  # Fixed: removed .range()
+    valuelist = sorted(valuelist).reversed()[:num_pages]  # Fixed: removed .range()
     chapter_delimiters = []
     for pair in valuelist:
         chapter_delimiters.append(pair[1])  # Now stores page indices
