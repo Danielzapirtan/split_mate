@@ -33,7 +33,7 @@ def eval(page):
     if re.match(r'\s\d+\s*$', line_0):
         value -= 400
     value += random.randint(0, 98) - 49
-    return -value
+    return value
 
 def minimax(reader):
     pagelist = reader.pages
