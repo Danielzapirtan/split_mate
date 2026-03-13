@@ -32,7 +32,7 @@ class PDFChapterSplitter:
         (145, 161, "06_Chapter_6_When_Behavior_Not_Changing"),
         (162, 183, "07_Chapter_7_Thoughts_Urges_Missing_Behaviors"),
         (184, 207, "08_Chapter_8_Consultation_Teams_Skills_Phone"),
-        (208, 210, "09_References_and_Index"),
+        (208, 209, "09_References_and_Index"),
     ]
     
     def __init__(self, input_pdf_path: str, output_dir: str):
