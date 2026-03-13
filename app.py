@@ -193,7 +193,7 @@ class PDFChapterSplitter:
                     
                     f.write(f"Chapter {i}: {chapter_name}\n")
                     f.write(f"  File: {title}.pdf\n")
-                    f.write(f"  Pages: {start} - {end}\n\n")
+                    f.write(f"  Pages: {start - 1} - {end - 1}\n\n")
                     
             logger.info(f"Created metadata file: {metadata_file}")
             return metadata_file
