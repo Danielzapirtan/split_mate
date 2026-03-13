@@ -23,8 +23,8 @@ class PDFChapterSplitter:
     # Chapter definitions with page ranges (1-indexed as in the PDF)
     # Format: (start_page, end_page, title)
     CHAPTERS = [
-        (2, 22, "00_Title_and_Front_Matter"),
-        (23, 47, "01_Chapter_1_The_Basics"),
+        (2, 25, "00_Title_and_Front_Matter"),
+        (26, 47, "01_Chapter_1_The_Basics"),
         (48, 66, "02_Chapter_2_Orientation_and_Collaboration"),
         (67, 98, "03_Chapter_3_Getting_to_Know_Target_Behavior"),
         (99, 120, "04_Chapter_4_Keeping_Client_Engaged"),
