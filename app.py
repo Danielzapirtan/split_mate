@@ -23,7 +23,7 @@ class PDFChapterSplitter:
     # Chapter definitions with page ranges (1-indexed as in the PDF)
     # Format: (start_page, end_page, title)
     CHAPTERS = [
-        (1, 22, "00_Title_and_Front_Matter"),
+        (2, 22, "00_Title_and_Front_Matter"),
         (23, 47, "01_Chapter_1_The_Basics"),
         (48, 66, "02_Chapter_2_Orientation_and_Collaboration"),
         (67, 98, "03_Chapter_3_Getting_to_Know_Target_Behavior"),
@@ -118,7 +118,7 @@ class PDFChapterSplitter:
                 pdf_writer = PyPDF2.PdfWriter()
                 
                 # PyPDF2 uses 0-indexed pages
-                for page_num in range(start_page, end_page + 1):
+                for page_num in range(start_page - 2, end_page - 1):
                     pdf_writer.add_page(pdf_reader.pages[page_num])
                 
                 with open(output_file, 'wb') as outfile:
