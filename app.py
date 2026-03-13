@@ -1,164 +1,105 @@
-#!/usr/bin/env python3
-import sys
 import re
-import os
-from pypdf import PdfReader, PdfWriter
-import pdfplumber
+from pathlib import Path
+import sys
 
 
-def evaluate_chapter_start(page, page_num, pdf_path):
-    """
-    Evaluate if a page is likely a chapter start.
-    Returns a score (higher = more likely to be chapter start).
-    """
-    score = 0
+def detect_chapters(file_path):
+    """Detect chapter markers in text file."""
+    chapters = []
     
-    try:
-        with pdfplumber.open(pdf_path) as pdf:
-            plumber_page = pdf.pages[page_num]
-            text = plumber_page.extract_text() or ""
-            
-            # Get first 500 characters for analysis
-            first_text = text[:500].strip()
-            
-            if not first_text:
-                return 0
-            
-            # Check for chapter keywords at start of page
-            chapter_patterns = [
-                r'^CHAPTER\s+[IVX\d]+',
-                r'^Chapter\s+[IVX\d]+',
-                r'^PART\s+[IVX\d]+',
-                r'^Part\s+[IVX\d]+',
-                r'^SECTION\s+[IVX\d]+',
-                r'^Section\s+[IVX\d]+',
-            ]
-            
-            for pattern in chapter_patterns:
-                if re.search(pattern, first_text, re.MULTILINE | re.IGNORECASE):
-                    score += 100
-                    break
-            
-            # Check for chapter title patterns
-            lines = first_text.split('\n')
-            if lines:
-                first_line = lines[0].strip()
-                
-                # All caps title (common for chapters)
-                if first_line and first_line.isupper() and len(first_line) > 5:
-                    score += 30
-                
-                # Numeric or Roman numeral start
-                if re.match(r'^[IVX\d]+[\.\s]', first_line):
-                    score += 20
-            
-            # Check for substantial whitespace at top (typical for chapter starts)
-            if len(lines) > 0 and not lines[0].strip():
-                score += 10
-            
-            # Penalize very short pages (likely not chapter starts)
-            if len(text) < 200:
-                score -= 20
-            
-            # Bonus for pages that are multiples of common chapter lengths
-            if page_num > 0 and page_num % 10 == 0:
-                score += 5
-            
-    except Exception as e:
-        print(f"Error evaluating page {page_num}: {e}", file=sys.stderr)
+    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+        lines = f.readlines()
     
-    return score
-
-
-def find_chapter_boundaries(pdf_path, min_score=50):
-    """
-    Find chapter boundaries using evaluation function.
-    Returns list of (page_number, score) tuples.
-    """
-    reader = PdfReader(pdf_path)
-    total_pages = len(reader.pages)
-    
-    boundaries = []
-    
-    print(f"Analyzing {total_pages} pages...", file=sys.stderr)
-    
-    for i in range(total_pages):
-        score = evaluate_chapter_start(reader.pages[i], i, pdf_path)
+    for line_num, line in enumerate(lines):
+        line = line.strip()
         
-        if score >= min_score:
-            boundaries.append((i, score))
-            print(f"Page {i+1}: score={score}", file=sys.stderr)
+        # Pattern: "CHAPTER X" or "CHAPTER X Title"
+        match = re.match(r'^CHAPTER\s+(\d+)(?:\s+(.*))?$', line, re.IGNORECASE)
+        if match:
+            chapter_num = int(match.group(1))
+            title = match.group(2) if match.group(2) else ""
+            
+            # Skip if this is just a table of contents entry (has page number at end)
+            if re.search(r'\d+\s*$', title):
+                continue
+                
+            chapters.append({
+                'number': chapter_num,
+                'line': line_num,
+                'title': title.strip(),
+                'full_text': line
+            })
     
-    return boundaries
+    return chapters, lines
 
 
-def split_pdf_by_chapters(pdf_path, output_dir="chapters", min_score=50):
-    """
-    Split PDF into chapters based on evaluation scores.
-    """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+def split_text_by_chapters(file_path, output_dir=None):
+    """Split text file into separate files for each chapter."""
+    file_path = Path(file_path)
     
-    reader = PdfReader(pdf_path)
-    total_pages = len(reader.pages)
+    if output_dir is None:
+        output_dir = file_path.parent / f"{file_path.stem}_chapters"
+    else:
+        output_dir = Path(output_dir)
     
-    # Find chapter boundaries
-    boundaries = find_chapter_boundaries(pdf_path, min_score)
+    output_dir.mkdir(exist_ok=True)
     
-    if not boundaries:
-        print("No chapter boundaries found with current threshold.", file=sys.stderr)
-        print(f"Try lowering min_score (current: {min_score})", file=sys.stderr)
+    chapters, lines = detect_chapters(file_path)
+    
+    if not chapters:
+        print("No chapters detected.")
         return
     
-    # Add first page if not already included
-    if not boundaries or boundaries[0][0] != 0:
-        boundaries.insert(0, (0, 0))
+    print(f"Found {len(chapters)} chapters:\n")
+    for ch in chapters:
+        title_text = f" - {ch['title']}" if ch['title'] else ""
+        print(f"  Chapter {ch['number']}{title_text} (line {ch['line'] + 1})")
     
-    # Add end boundary
-    boundaries.append((total_pages, 0))
+    print(f"\nSplitting into separate files...\n")
     
-    # Sort by page number
-    boundaries.sort(key=lambda x: x[0])
+    # Write front matter (before first chapter)
+    if chapters[0]['line'] > 0:
+        front_matter = ''.join(lines[:chapters[0]['line']])
+        output_path = output_dir / "00_front_matter.txt"
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(front_matter)
+        print(f"Front matter: Lines 1-{chapters[0]['line']} -> {output_path.name}")
     
-    print(f"\nFound {len(boundaries)-1} chapters", file=sys.stderr)
-    
-    # Split into chapters
-    for i in range(len(boundaries) - 1):
-        start_page = boundaries[i][0]
-        end_page = boundaries[i + 1][0]
+    # Write each chapter
+    for i, chapter in enumerate(chapters):
+        start_line = chapter['line']
+        end_line = chapters[i + 1]['line'] if i + 1 < len(chapters) else len(lines)
         
-        writer = PdfWriter()
-        for page_num in range(start_page, end_page):
-            writer.add_page(reader.pages[page_num])
+        chapter_text = ''.join(lines[start_line:end_line])
         
-        output_path = os.path.join(output_dir, f"chapter_{i+1:02d}_pages_{start_page+1}-{end_page}.pdf")
+        # Create filename
+        safe_title = re.sub(r'[^\w\s-]', '', chapter['title'])[:50].strip()
+        safe_title = safe_title.replace(' ', '_') if safe_title else ''
+        filename = f"chapter_{chapter['number']:02d}"
+        if safe_title:
+            filename += f"_{safe_title}"
+        filename += ".txt"
         
-        with open(output_path, "wb") as output_file:
-            writer.write(output_file)
+        output_path = output_dir / filename
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(chapter_text)
         
-        print(f"Created: {output_path}", file=sys.stderr)
+        print(f"Chapter {chapter['number']}: Lines {start_line + 1}-{end_line} -> {output_path.name}")
     
-    print(f"\nChapters saved to: {output_dir}/", file=sys.stderr)
-
-
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python app.py <pdf_file> [output_dir] [min_score]")
-        print("  pdf_file: Path to input PDF")
-        print("  output_dir: Directory for output chapters (default: chapters)")
-        print("  min_score: Minimum score for chapter detection (default: 50)")
-        sys.exit(1)
-    
-    pdf_path = sys.argv[1]
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else "chapters"
-    min_score = int(sys.argv[3]) if len(sys.argv) > 3 else 50
-    
-    if not os.path.exists(pdf_path):
-        print(f"Error: File not found: {pdf_path}", file=sys.stderr)
-        sys.exit(1)
-    
-    split_pdf_by_chapters(pdf_path, output_dir, min_score)
+    print(f"\nSplit complete. Output directory: {output_dir}")
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 2:
+        print("Usage: python app.py <text_file> [output_directory]")
+        print("\nOptimized for DBT therapy books and similar text files with CHAPTER markers.")
+        sys.exit(1)
+    
+    input_file = sys.argv[1]
+    output_directory = sys.argv[2] if len(sys.argv) > 2 else None
+    
+    if not Path(input_file).exists():
+        print(f"Error: File '{input_file}' not found.")
+        sys.exit(1)
+    
+    split_text_by_chapters(input_file, output_directory)
