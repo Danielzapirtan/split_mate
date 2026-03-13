@@ -31,8 +31,8 @@ class PDFChapterSplitter:
         (121, 144, "05_Chapter_5_Incorporating_Solutions"),
         (145, 161, "06_Chapter_6_When_Behavior_Not_Changing"),
         (162, 183, "07_Chapter_7_Thoughts_Urges_Missing_Behaviors"),
-        (183, 205, "08_Chapter_8_Consultation_Teams_Skills_Phone"),
-        (206, 210, "09_References_and_Index"),
+        (183, 203, "08_Chapter_8_Consultation_Teams_Skills_Phone"),
+        (204, 212, "09_References_and_Index"),
     ]
     
     def __init__(self, input_pdf_path: str, output_dir: str):
@@ -90,7 +90,7 @@ class PDFChapterSplitter:
         """
         valid = True
         for start, end, title in self.CHAPTERS:
-            if start < 1 or end > total_pages:
+            if start < 1 or end > total_pages + 2:
                 logger.warning(f"Chapter '{title}' range ({start}-{end}) exceeds PDF pages (1-{total_pages})")
                 valid = False
             elif start > end:
