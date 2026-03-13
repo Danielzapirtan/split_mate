@@ -118,7 +118,7 @@ class PDFChapterSplitter:
                 pdf_writer = PyPDF2.PdfWriter()
                 
                 # PyPDF2 uses 0-indexed pages
-                for page_num in range(start_page - 1, end_page):
+                for page_num in range(start_page, end_page + 1):
                     pdf_writer.add_page(pdf_reader.pages[page_num])
                 
                 with open(output_file, 'wb') as outfile:
