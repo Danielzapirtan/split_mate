@@ -1,105 +1,274 @@
-import re
+#!/usr/bin/env python3
+"""
+PDF Chapter Splitter for "Chain Analysis in Dialectical Behavior Therapy"
+Splits the PDF into individual chapter files based on predefined page ranges.
+"""
+
+import os
+import argparse
 from pathlib import Path
-import sys
+import PyPDF2
+from typing import Dict, List, Tuple
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def detect_chapters(file_path):
-    """Detect chapter markers in text file."""
-    chapters = []
+class PDFChapterSplitter:
+    """
+    Splits a PDF file into chapters based on predefined page ranges.
+    """
     
-    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-        lines = f.readlines()
+    # Chapter definitions with page ranges (1-indexed as in the PDF)
+    # Format: (start_page, end_page, title)
+    CHAPTERS = [
+        (1, 22, "00_Title_and_Front_Matter"),
+        (23, 47, "01_Chapter_1_The_Basics"),
+        (48, 66, "02_Chapter_2_Orientation_and_Collaboration"),
+        (67, 98, "03_Chapter_3_Getting_to_Know_Target_Behavior"),
+        (99, 120, "04_Chapter_4_Keeping_Client_Engaged"),
+        (121, 144, "05_Chapter_5_Incorporating_Solutions"),
+        (145, 161, "06_Chapter_6_When_Behavior_Not_Changing"),
+        (162, 183, "07_Chapter_7_Thoughts_Urges_Missing_Behaviors"),
+        (184, 207, "08_Chapter_8_Consultation_Teams_Skills_Phone"),
+        (208, 216, "09_References_and_Index"),
+    ]
     
-    for line_num, line in enumerate(lines):
-        line = line.strip()
+    def __init__(self, input_pdf_path: str, output_dir: str):
+        """
+        Initialize the PDF splitter.
         
-        # Pattern: "CHAPTER X" or "CHAPTER X Title"
-        match = re.match(r'^CHAPTER\s+(\d+)(?:\s+(.*))?$', line, re.IGNORECASE)
-        if match:
-            chapter_num = int(match.group(1))
-            title = match.group(2) if match.group(2) else ""
-            
-            # Skip if this is just a table of contents entry (has page number at end)
-            if re.search(r'\d+\s*$', title):
-                continue
+        Args:
+            input_pdf_path: Path to the input PDF file
+            output_dir: Directory where chapter PDFs will be saved
+        """
+        self.input_pdf_path = Path(input_pdf_path)
+        self.output_dir = Path(output_dir)
+        
+        # Validate input file
+        if not self.input_pdf_path.exists():
+            raise FileNotFoundError(f"Input PDF not found: {self.input_pdf_path}")
+        
+        # Create output directory if it doesn't exist
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+    def get_pdf_info(self) -> Tuple[int, List[str]]:
+        """
+        Get information about the PDF file.
+        
+        Returns:
+            Tuple of (total_pages, list of existing chapter files)
+        """
+        try:
+            with open(self.input_pdf_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                total_pages = len(pdf_reader.pages)
                 
-            chapters.append({
-                'number': chapter_num,
-                'line': line_num,
-                'title': title.strip(),
-                'full_text': line
-            })
+                # Check for existing chapter files
+                existing_chapters = []
+                for _, _, title in self.CHAPTERS:
+                    chapter_file = self.output_dir / f"{title}.pdf"
+                    if chapter_file.exists():
+                        existing_chapters.append(str(chapter_file))
+                
+                return total_pages, existing_chapters
+                
+        except Exception as e:
+            logger.error(f"Error reading PDF: {e}")
+            raise
     
-    return chapters, lines
+    def validate_page_ranges(self, total_pages: int) -> bool:
+        """
+        Validate that chapter page ranges are within the PDF.
+        
+        Args:
+            total_pages: Total number of pages in the PDF
+            
+        Returns:
+            True if all ranges are valid, False otherwise
+        """
+        valid = True
+        for start, end, title in self.CHAPTERS:
+            if start < 1 or end > total_pages:
+                logger.warning(f"Chapter '{title}' range ({start}-{end}) exceeds PDF pages (1-{total_pages})")
+                valid = False
+            elif start > end:
+                logger.warning(f"Chapter '{title}' has invalid range: start ({start}) > end ({end})")
+                valid = False
+        return valid
+    
+    def split_chapter(self, start_page: int, end_page: int, chapter_title: str) -> Path:
+        """
+        Extract a single chapter from the PDF.
+        
+        Args:
+            start_page: First page number (1-indexed)
+            end_page: Last page number (1-indexed)
+            chapter_title: Title for the output file
+            
+        Returns:
+            Path to the created chapter PDF
+        """
+        output_file = self.output_dir / f"{chapter_title}.pdf"
+        
+        try:
+            with open(self.input_pdf_path, 'rb') as infile:
+                pdf_reader = PyPDF2.PdfReader(infile)
+                pdf_writer = PyPDF2.PdfWriter()
+                
+                # PyPDF2 uses 0-indexed pages
+                for page_num in range(start_page - 1, end_page):
+                    pdf_writer.add_page(pdf_reader.pages[page_num])
+                
+                with open(output_file, 'wb') as outfile:
+                    pdf_writer.write(outfile)
+                    
+            logger.info(f"Created: {output_file}")
+            return output_file
+            
+        except Exception as e:
+            logger.error(f"Error creating chapter '{chapter_title}': {e}")
+            raise
+    
+    def split_all_chapters(self, force: bool = False) -> List[Path]:
+        """
+        Split all chapters from the PDF.
+        
+        Args:
+            force: If True, overwrite existing chapter files
+            
+        Returns:
+            List of paths to created chapter files
+        """
+        # Get PDF info
+        total_pages, existing_chapters = self.get_pdf_info()
+        logger.info(f"PDF has {total_pages} pages")
+        
+        # Check for existing files
+        if existing_chapters and not force:
+            logger.warning("Some chapter files already exist. Use --force to overwrite:")
+            for chapter in existing_chapters:
+                logger.warning(f"  {chapter}")
+            return []
+        
+        # Validate page ranges
+        if not self.validate_page_ranges(total_pages):
+            logger.error("Invalid page ranges detected. Please check chapter definitions.")
+            return []
+        
+        # Split each chapter
+        created_files = []
+        for start, end, title in self.CHAPTERS:
+            try:
+                output_file = self.split_chapter(start, end, title)
+                created_files.append(output_file)
+            except Exception as e:
+                logger.error(f"Failed to split chapter '{title}': {e}")
+                
+        logger.info(f"Successfully created {len(created_files)} chapter files")
+        return created_files
+    
+    def create_metadata_file(self) -> Path:
+        """
+        Create a metadata file with chapter information.
+        
+        Returns:
+            Path to the created metadata file
+        """
+        metadata_file = self.output_dir / "chapter_metadata.txt"
+        
+        try:
+            with open(metadata_file, 'w') as f:
+                f.write("Chapter Metadata for 'Chain Analysis in Dialectical Behavior Therapy'\n")
+                f.write("=" * 60 + "\n\n")
+                f.write("Generated by PDF Chapter Splitter\n\n")
+                
+                for i, (start, end, title) in enumerate(self.CHAPTERS):
+                    # Extract clean chapter name without prefix
+                    if i == 0:
+                        chapter_name = "Title and Front Matter"
+                    else:
+                        chapter_name = title.replace(f"{i:02d}_", "").replace("_", " ")
+                    
+                    f.write(f"Chapter {i}: {chapter_name}\n")
+                    f.write(f"  File: {title}.pdf\n")
+                    f.write(f"  Pages: {start} - {end}\n\n")
+                    
+            logger.info(f"Created metadata file: {metadata_file}")
+            return metadata_file
+            
+        except Exception as e:
+            logger.error(f"Error creating metadata file: {e}")
+            raise
 
 
-def split_text_by_chapters(file_path, output_dir=None):
-    """Split text file into separate files for each chapter."""
-    file_path = Path(file_path)
+def main():
+    """Main function to run the PDF chapter splitter."""
+    parser = argparse.ArgumentParser(
+        description="Split 'Chain Analysis in Dialectical Behavior Therapy' PDF into chapters"
+    )
+    parser.add_argument(
+        "--input", "-i",
+        default="/content/drive/MyDrive/boox/Chain.pdf",
+        help="Path to input PDF file (default: /content/drive/MyDrive/boox/Chain.pdf)"
+    )
+    parser.add_argument(
+        "--output", "-o",
+        default="/content/drive/MyDrive/output_dir",
+        help="Output directory for chapter PDFs (default: /content/drive/MyDrive/output_dir)"
+    )
+    parser.add_argument(
+        "--force", "-f",
+        action="store_true",
+        help="Force overwrite of existing chapter files"
+    )
+    parser.add_argument(
+        "--info", "-n",
+        action="store_true",
+        help="Only show PDF information without splitting"
+    )
     
-    if output_dir is None:
-        output_dir = file_path.parent / f"{file_path.stem}_chapters"
-    else:
-        output_dir = Path(output_dir)
+    args = parser.parse_args()
     
-    output_dir.mkdir(exist_ok=True)
-    
-    chapters, lines = detect_chapters(file_path)
-    
-    if not chapters:
-        print("No chapters detected.")
-        return
-    
-    print(f"Found {len(chapters)} chapters:\n")
-    for ch in chapters:
-        title_text = f" - {ch['title']}" if ch['title'] else ""
-        print(f"  Chapter {ch['number']}{title_text} (line {ch['line'] + 1})")
-    
-    print(f"\nSplitting into separate files...\n")
-    
-    # Write front matter (before first chapter)
-    if chapters[0]['line'] > 0:
-        front_matter = ''.join(lines[:chapters[0]['line']])
-        output_path = output_dir / "00_front_matter.txt"
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(front_matter)
-        print(f"Front matter: Lines 1-{chapters[0]['line']} -> {output_path.name}")
-    
-    # Write each chapter
-    for i, chapter in enumerate(chapters):
-        start_line = chapter['line']
-        end_line = chapters[i + 1]['line'] if i + 1 < len(chapters) else len(lines)
+    try:
+        # Initialize splitter
+        splitter = PDFChapterSplitter(args.input, args.output)
         
-        chapter_text = ''.join(lines[start_line:end_line])
+        # Get PDF info
+        total_pages, existing_chapters = splitter.get_pdf_info()
+        logger.info(f"PDF: {args.input}")
+        logger.info(f"Total pages: {total_pages}")
         
-        # Create filename
-        safe_title = re.sub(r'[^\w\s-]', '', chapter['title'])[:50].strip()
-        safe_title = safe_title.replace(' ', '_') if safe_title else ''
-        filename = f"chapter_{chapter['number']:02d}"
-        if safe_title:
-            filename += f"_{safe_title}"
-        filename += ".txt"
+        if args.info:
+            logger.info("\nChapter definitions:")
+            for start, end, title in splitter.CHAPTERS:
+                logger.info(f"  {title}: pages {start}-{end}")
+            return
         
-        output_path = output_dir / filename
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(chapter_text)
+        # Split chapters
+        logger.info(f"Output directory: {args.output}")
+        created_files = splitter.split_all_chapters(force=args.force)
         
-        print(f"Chapter {chapter['number']}: Lines {start_line + 1}-{end_line} -> {output_path.name}")
-    
-    print(f"\nSplit complete. Output directory: {output_dir}")
+        if created_files:
+            # Create metadata file
+            splitter.create_metadata_file()
+            logger.info(f"\nSuccessfully created {len(created_files)} chapter files in: {args.output}")
+        else:
+            logger.info("No files were created. Use --force to overwrite existing files.")
+            
+    except FileNotFoundError as e:
+        logger.error(f"File not found: {e}")
+        logger.info("\nMake sure your Google Drive is mounted and the file exists at:")
+        logger.info("  /content/drive/MyDrive/boox/Chain.pdf")
+        logger.info("\nTo mount Google Drive in Colab, run:")
+        logger.info("  from google.colab import drive")
+        logger.info("  drive.mount('/content/drive')")
+        
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        raise
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python app.py <text_file> [output_directory]")
-        print("\nOptimized for DBT therapy books and similar text files with CHAPTER markers.")
-        sys.exit(1)
-    
-    input_file = sys.argv[1]
-    output_directory = sys.argv[2] if len(sys.argv) > 2 else None
-    
-    if not Path(input_file).exists():
-        print(f"Error: File '{input_file}' not found.")
-        sys.exit(1)
-    
-    split_text_by_chapters(input_file, output_directory)
+    main()
