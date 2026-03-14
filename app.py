@@ -7,7 +7,7 @@ from google.colab import drive
 drive.mount('/content/drive')
 
 # 2. Configuration
-input_pdf_path = "boox/DSD.pdf" # Ensure this matches your filename
+input_pdf_path = "/content/drive/MyDrive/boox/DSD.pdf" # Ensure this matches your filename
 output_folder = "Dont_Shoot_The_Dog_Chapters"
 archive_name = "Dont_Shoot_The_Dog_Split.tar.gz"
 drive_destination = "/content/drive/MyDrive/"
