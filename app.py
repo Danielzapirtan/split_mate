@@ -46,6 +46,6 @@ with tarfile.open(archive_name, "w:gz") as tar:
 
 # 5. Move to Google Drive
 final_path = os.path.join(drive_destination, archive_name)
-os.rename(archive_name, final_path)
+#os.rename(archive_name, final_path)
 
 print(f"\nSuccess! Your file has been saved to your Google Drive at: {final_path}")
